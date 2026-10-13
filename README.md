@@ -1,10 +1,10 @@
 # Computer Networks Exercises
 
-Download the six Python networking lab exercises:
+This public repository contains six Python lab exercises. To get the complete folder on your computer:
 
-```bash
-curl -fL -o networking_exercises.zip https://raw.githubusercontent.com/cn-lab51/cn/main/networking_exercises.zip
-unzip networking_exercises.zip
-```
+    git clone https://github.com/cn-lab51/cn.git
+    cd cn/networking_exercises/01_subnetting
 
-The ZIP includes TCP client/server examples, standalone SymPy examples, and a README for each exercise.
+Each exercise folder contains a TCP client.py and server.py, a standalone SymPy script, and a README with setup and run instructions. For the TCP version, run python3 server.py in one terminal, then python3 client.py in a second terminal. Only the standalone SymPy scripts require SymPy.
+
+The same exercise folder is also available as networking_exercises.zip.
