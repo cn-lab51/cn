@@ -1,42 +1,48 @@
 import json
 import socket
 
+
 HOST = "127.0.0.1"
 PORT = 5503
 
 def transmit(data):
-    frames = data.get("frames", ["Frame 0", "Frame 1", "Frame 2"])
-    lost = set(int(i) for i in data.get("lost_ack_frames", []))
+    frames = data.get("frames", ["Frame A", "Frame B", "Frame C"])
+    lost_ack = set(data.get("lost_ack", []))
     events = []
-    for seq, payload in enumerate(frames):
-        events.append(f"Sender -> Frame {seq}: {payload}")
-        events.append(f"Receiver -> ACK {seq}")
-        if seq in lost:
-            events.append(f"ACK {seq} lost; sender timeout")
-            events.append(f"Sender -> Retransmit Frame {seq}: {payload}")
-            events.append(f"Receiver -> ACK {seq}")
-        events.append(f"Sender -> Frame {seq + 1} allowed")
-    return {"frames_sent": len(frames), "events": events}
+    sequence = 0
 
-def handle(connection):
+    for number, frame in enumerate(frames):
+        events.append(f"Send frame {sequence}: {frame}")
+        if number in lost_ack:
+            events.append(f"ACK {sequence} lost; timeout")
+            events.append(f"Retransmit frame {sequence}: {frame}")
+        events.append(f"ACK {sequence} received")
+        sequence = 1 - sequence
+
+    return {"events": events}
+
+
+def handle_client(connection):
     with connection:
-        raw = connection.makefile("rb").readline()
         try:
-            request = json.loads(raw.decode("utf-8"))
-            response = {"ok": True, "result": transmit(request)}
-        except Exception as error:
-            response = {"ok": False, "error": str(error)}
-        connection.sendall((json.dumps(response) + "\n").encode("utf-8"))
+            reader = connection.makefile("r", encoding="utf-8")
+            request = json.loads(reader.readline())
+            reply = {"ok": True, "result": transmit(request)}
+        except (KeyError, TypeError, ValueError) as error:
+            reply = {"ok": False, "error": str(error)}
+        connection.sendall((json.dumps(reply) + "\n").encode("utf-8"))
+
 
 def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind((HOST, PORT))
         server.listen()
-        print(f"Server listening on {HOST}:{PORT}")
+        print(f"Listening on {HOST}:{PORT}")
         while True:
             connection, _ = server.accept()
-            handle(connection)
+            handle_client(connection)
+
 
 if __name__ == "__main__":
     main()

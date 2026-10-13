@@ -1,46 +1,49 @@
-import ipaddress
-from sympy import And, Eq, Implies, Integer, Mod, Symbol, false, simplify, simplify_logic, true
+from sympy import Matrix
 
-def encode(clients):
+def server(data):
+    clients = data["clients"]
     names = list(clients)
     if not names:
-        raise ValueError("at least one client is required")
-    length = len(clients[names[0]]["code"])
-    if length == 0 or any(len(item["code"]) != length for item in clients.values()):
-        raise ValueError("all chipping codes must have equal nonzero length")
-    signal = [Integer(0) for _ in range(length)]
-    for item in clients.values():
-        if item["bit"] not in (-1, 1) or any(chip not in (-1, 1) for chip in item["code"]):
-            raise ValueError("data bits and chips must be -1 or 1")
-        signal = [simplify(s + Integer(item["bit"] * chip)) for s, chip in zip(signal, item["code"])]
-    extracted = {}
-    for name, item in clients.items():
-        dot = sum(s * chip for s, chip in zip(signal, item["code"]))
-        extracted[name] = 1 if dot > 0 else -1 if dot < 0 else 0
-    return {"clients": clients, "composite_signal": [int(x) for x in signal], "extracted_bits": extracted}
+        raise ValueError("Add at least one client")
 
-def client(server_function, *args, **kwargs):
-    return server_function(*args, **kwargs)
+    size = len(clients[names[0]]["code"])
+    signal = Matrix([0] * size)
+    codes = {}
+    for name, client in clients.items():
+        code = client["code"]
+        bit = client["bit"]
+        if len(code) != size or bit not in (-1, 1):
+            raise ValueError("Use equal-length codes and data bits of 1 or -1")
+        if any(chip not in (-1, 1) for chip in code):
+            raise ValueError("Each chip must be 1 or -1")
+        codes[name] = Matrix(code)
+        signal += bit * codes[name]
 
-def format_result(result):
-    if "first_usable" in result:
-        return f"Network: {result['network']}/{result['prefix']}\nFirst usable IP: {result['first_usable']}\nLast usable IP: {result['last_usable']}\nBroadcast address: {result['broadcast']}"
-    if "stuffed" in result:
-        return f"Original bits: {result['input']}\nAfter bit stuffing: {result['stuffed']}\nAfter destuffing: {result['destuffed']}"
-    if "mac" in result:
-        return f"MAC address: {result['mac']}\nAssigned IP address: {result['ip']}"
-    if "events" in result:
-        return "Stop-and-Wait ARQ transmission:\n" + "\n".join(result["events"])
-    if "composite_signal" in result:
-        recovered = ", ".join(f"Client {name}: {bit:+d}" for name, bit in result["extracted_bits"].items())
-        return f"Composite signal: {result['composite_signal']}\nRecovered data bits: {recovered}"
-    if "query_path" in result:
-        return "Recursive DNS lookup:\n" + "\n".join(result["query_path"]) + f"\nResolved address: {result['domain']} -> {result['ip']}"
-    return str(result)
+    recovered = {}
+    for name, code in codes.items():
+        for other_name, other in codes.items():
+            if name != other_name and (code.dot(other) != 0):
+                raise ValueError("Client codes must be orthogonal")
+        score = code.dot(signal)
+        recovered[name] = 1 if score > 0 else -1 if score < 0 else 0
+
+    return {"signal": list(signal), "recovered": recovered}
+
+
+def client(data):
+    return server(data)
+
+
+def print_result(result):
+    print(f"Combined signal: {result['signal']}")
+    for name, bit in result["recovered"].items():
+        print(f"Client {name} recovered bit: {bit}")
+
 
 def main():
-    result = client(encode, **{'clients': {'A': {'bit': 1, 'code': [1, -1, 1, -1]}, 'B': {'bit': -1, 'code': [1, 1, -1, -1]}}})
-    print(format_result(result))
+    sample = {'clients': {'A': {'bit': 1, 'code': [1, -1, 1, -1]}, 'B': {'bit': -1, 'code': [1, 1, -1, -1]}}}
+    print_result(client(sample))
+
 
 if __name__ == "__main__":
     main()

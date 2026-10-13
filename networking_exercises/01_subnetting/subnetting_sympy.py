@@ -1,38 +1,41 @@
 import ipaddress
-from sympy import And, Eq, Implies, Integer, Mod, Symbol, false, simplify, simplify_logic, true
+from sympy import Integer
 
-def calculate(ip, prefix=24):
-    address = ipaddress.IPv4Address(ip)
-    if not 0 <= prefix <= 32:
-        raise ValueError("Prefix must be from 0 to 32")
-    network = ipaddress.ip_network(f"{address}/{prefix}", strict=False)
-    hosts = list(network.hosts())
-    if not hosts:
-        raise ValueError("Network has no usable host addresses")
-    return {"network": str(network.network_address), "broadcast": str(network.broadcast_address), "first_usable": str(hosts[0]), "last_usable": str(hosts[-1]), "prefix": prefix}
+def server(data):
+    ip = ipaddress.IPv4Address(data["ip"])
+    prefix = int(data.get("prefix", 24))
+    if not 0 <= prefix <= 30:
+        raise ValueError("Use a prefix from 0 to 30 for usable host addresses")
 
-def client(server_function, *args, **kwargs):
-    return server_function(*args, **kwargs)
+    host_count = Integer(2) ** (32 - prefix)
+    address_number = Integer(int(ip))
+    network_number = address_number // host_count * host_count
+    broadcast_number = network_number + host_count - 1
 
-def format_result(result):
-    if "first_usable" in result:
-        return f"Network: {result['network']}/{result['prefix']}\nFirst usable IP: {result['first_usable']}\nLast usable IP: {result['last_usable']}\nBroadcast address: {result['broadcast']}"
-    if "stuffed" in result:
-        return f"Original bits: {result['input']}\nAfter bit stuffing: {result['stuffed']}\nAfter destuffing: {result['destuffed']}"
-    if "mac" in result:
-        return f"MAC address: {result['mac']}\nAssigned IP address: {result['ip']}"
-    if "events" in result:
-        return "Stop-and-Wait ARQ transmission:\n" + "\n".join(result["events"])
-    if "composite_signal" in result:
-        recovered = ", ".join(f"Client {name}: {bit:+d}" for name, bit in result["extracted_bits"].items())
-        return f"Composite signal: {result['composite_signal']}\nRecovered data bits: {recovered}"
-    if "query_path" in result:
-        return "Recursive DNS lookup:\n" + "\n".join(result["query_path"]) + f"\nResolved address: {result['domain']} -> {result['ip']}"
-    return str(result)
+    return {
+        "network": str(ipaddress.IPv4Address(int(network_number))),
+        "prefix": prefix,
+        "first": str(ipaddress.IPv4Address(int(network_number + 1))),
+        "last": str(ipaddress.IPv4Address(int(broadcast_number - 1))),
+        "broadcast": str(ipaddress.IPv4Address(int(broadcast_number))),
+    }
+
+
+def client(data):
+    return server(data)
+
+
+def print_result(result):
+    print(f"Network: {result['network']}/{result['prefix']}")
+    print(f"First usable IP: {result['first']}")
+    print(f"Last usable IP: {result['last']}")
+    print(f"Broadcast address: {result['broadcast']}")
+
 
 def main():
-    result = client(calculate, **{'ip': '192.168.1.25', 'prefix': 24})
-    print(format_result(result))
+    sample = {'ip': '192.168.1.25', 'prefix': 24}
+    print_result(client(sample))
+
 
 if __name__ == "__main__":
     main()

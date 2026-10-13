@@ -1,39 +1,47 @@
 import json
 import socket
+import ipaddress
 
 HOST = "127.0.0.1"
 PORT = 5500
 
-import ipaddress
-
 def calculate(data):
-    network = ipaddress.ip_network(f"{data['ip']}/{data.get('prefix', 24)}", strict=False)
-    if network.version != 4:
-        raise ValueError("IPv4 address required")
-    hosts = list(network.hosts())
-    if not hosts:
-        raise ValueError("Network has no usable host addresses")
-    return {"network": str(network.network_address), "broadcast": str(network.broadcast_address), "first_usable": str(hosts[0]), "last_usable": str(hosts[-1]), "prefix": network.prefixlen}
+    ip = ipaddress.IPv4Address(data["ip"])
+    prefix = int(data.get("prefix", 24))
+    if not 0 <= prefix <= 30:
+        raise ValueError("Use a prefix from 0 to 30 for usable host addresses")
 
-def handle(connection):
+    network = ipaddress.ip_network(f"{ip}/{prefix}", strict=False)
+    return {
+        "network": str(network.network_address),
+        "prefix": prefix,
+        "first": str(network.network_address + 1),
+        "last": str(network.broadcast_address - 1),
+        "broadcast": str(network.broadcast_address),
+    }
+
+
+def handle_client(connection):
     with connection:
-        raw = connection.makefile("rb").readline()
         try:
-            request = json.loads(raw.decode("utf-8"))
-            response = {"ok": True, "result": calculate(request)}
-        except Exception as error:
-            response = {"ok": False, "error": str(error)}
-        connection.sendall((json.dumps(response) + "\n").encode("utf-8"))
+            reader = connection.makefile("r", encoding="utf-8")
+            request = json.loads(reader.readline())
+            reply = {"ok": True, "result": calculate(request)}
+        except (KeyError, TypeError, ValueError) as error:
+            reply = {"ok": False, "error": str(error)}
+        connection.sendall((json.dumps(reply) + "\n").encode("utf-8"))
+
 
 def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind((HOST, PORT))
         server.listen()
-        print(f"Server listening on {HOST}:{PORT}")
+        print(f"Listening on {HOST}:{PORT}")
         while True:
             connection, _ = server.accept()
-            handle(connection)
+            handle_client(connection)
+
 
 if __name__ == "__main__":
     main()

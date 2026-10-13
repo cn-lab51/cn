@@ -1,42 +1,47 @@
 import ipaddress
-from sympy import And, Eq, Implies, Integer, Mod, Symbol, false, simplify, simplify_logic, true
+from sympy import Integer
 
-RECORDS = {"www.example.com": "93.184.216.34", "lab.example.org": "203.0.113.25"}
+RECORDS = {
+    "www.example.com": "93.184.216.34",
+    "lab.example.org": "203.0.113.25",
+}
 
-def resolve(domain):
-    normalized = domain.strip(".").lower()
-    labels = normalized.split(".")
-    if len(labels) < 2 or any(not label for label in labels):
-        raise ValueError("enter a valid domain such as www.example.com")
-    if normalized not in RECORDS:
-        raise ValueError("domain is not present in the sample DNS zone")
-    tld = labels[-1]
-    authoritative = ".".join(labels[-2:])
-    dns_rule = Eq(Symbol("authoritative_answer"), Symbol("A_record"))
-    return {"domain": normalized, "query_path": ["Client -> Recursive resolver", "Recursive resolver -> Root server", f"Root -> {tld.upper()} TLD server", f"{tld.upper()} TLD -> Authoritative server for {authoritative}", "Authoritative server -> Recursive resolver", "Recursive resolver -> Client"], "ip": RECORDS[normalized], "sympy_rule": str(dns_rule)}
 
-def client(server_function, *args, **kwargs):
-    return server_function(*args, **kwargs)
+def server(data):
+    domain = data["domain"].strip(".").lower()
+    if domain not in RECORDS:
+        raise ValueError("That name is not in the sample DNS table")
 
-def format_result(result):
-    if "first_usable" in result:
-        return f"Network: {result['network']}/{result['prefix']}\nFirst usable IP: {result['first_usable']}\nLast usable IP: {result['last_usable']}\nBroadcast address: {result['broadcast']}"
-    if "stuffed" in result:
-        return f"Original bits: {result['input']}\nAfter bit stuffing: {result['stuffed']}\nAfter destuffing: {result['destuffed']}"
-    if "mac" in result:
-        return f"MAC address: {result['mac']}\nAssigned IP address: {result['ip']}"
-    if "events" in result:
-        return "Stop-and-Wait ARQ transmission:\n" + "\n".join(result["events"])
-    if "composite_signal" in result:
-        recovered = ", ".join(f"Client {name}: {bit:+d}" for name, bit in result["extracted_bits"].items())
-        return f"Composite signal: {result['composite_signal']}\nRecovered data bits: {recovered}"
-    if "query_path" in result:
-        return "Recursive DNS lookup:\n" + "\n".join(result["query_path"]) + f"\nResolved address: {result['domain']} -> {result['ip']}"
-    return str(result)
+    parts = domain.split(".")
+    zone = ".".join(parts[-2:])
+    ip = RECORDS[domain]
+    path = [
+        "Client asks the recursive resolver",
+        "Resolver asks a root server",
+        f"Root server points to the .{parts[-1]} TLD server",
+        f"TLD server points to the {zone} authoritative server",
+        "Authoritative server returns the address",
+        "Resolver returns the answer to the client",
+    ]
+    address_number = Integer(int(ipaddress.IPv4Address(ip)))
+    return {"domain": domain, "ip": ip, "path": path, "address_number": int(address_number)}
+
+
+def client(data):
+    return server(data)
+
+
+def print_result(result):
+    print("Recursive DNS lookup:")
+    for step in result["path"]:
+        print(step)
+    print(f"Answer: {result['domain']} -> {result['ip']}")
+
 
 def main():
-    result = client(resolve, **{'domain': 'www.example.com'})
-    print(format_result(result))
+    sample = {'domain': 'www.example.com'}
+    print_result(client(sample))
+
 
 if __name__ == "__main__":
     main()
