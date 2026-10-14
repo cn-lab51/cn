@@ -1,18 +1,10 @@
-
 import socket
 
-HOST = "127.0.0.1"
-PORT = 12345
+domain = input("Enter domain: ")
 
-def main():
-    url = input("Enter the URL to resolve: ")
+s = socket.socket()
+s.connect(("127.0.0.1", 5000))
+s.send(domain.encode())
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(5)
-        s.connect((HOST, PORT))
-        s.sendall(url.encode())
-        ip = s.recv(1024).decode()
-        print(ip)
-
-if __name__ == "__main__":
-    main()
+print("IP Address:", s.recv(1024).decode())
+s.close()
