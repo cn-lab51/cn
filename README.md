@@ -1,12 +1,17 @@
-# Computer Networks Exercises
+# Computer Networks Lab Programs
 
-This repository contains six Python networking lab exercises.
+This repository contains two sets of lab examples:
 
-Clone the repository and enter an exercise folder:
+- [CNLAB](CNLAB/) contains the submitted TCP and SimPy programs for subnetting, bit stuffing, RARP, Stop-and-Wait ARQ, CDMA, and DNS.
+- [networking_exercises](networking_exercises/) contains the expanded examples with per-exercise guides.
+
+Clone the repository:
 
     git clone https://github.com/cn-lab51/cn.git
-    cd cn/networking_exercises/01_subnetting
 
-Each exercise folder contains a TCP client.py and server.py, a standalone SymPy script, and its own README. For the TCP version, run python3 server.py in one terminal and python3 client.py in a second terminal. Only the standalone scripts require SymPy.
+The CNLAB ZIP archive can also be downloaded directly:
 
-The ZIP archive is also available in the repository root as networking_exercises.zip.
+    curl -fL -o CNLAB.zip https://raw.githubusercontent.com/cn-lab51/cn/main/CNLAB.zip
+    unzip CNLAB.zip
+
+See CNLAB/README.md for run instructions and dependencies.
